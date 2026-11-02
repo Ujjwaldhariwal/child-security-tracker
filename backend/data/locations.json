@@ -1,0 +1,28 @@
+{
+  "devices": {
+    "test_phone_01": {
+      "deviceId": "test_phone_01",
+      "lastSeen": 1793620640115,
+      "lastReportedTime": 1793620640115,
+      "batteryPct": 88,
+      "isCharging": false,
+      "latitude": 37.7749,
+      "longitude": -122.4194,
+      "accuracy": 14.2
+    }
+  },
+  "locations": [
+    {
+      "id": "loc_1793620640115_y8kcwy",
+      "deviceId": "test_phone_01",
+      "timestamp": 1793620640115,
+      "serverReceivedAt": 1793620640115,
+      "latitude": 37.7749,
+      "longitude": -122.4194,
+      "accuracy": 14.2,
+      "batteryPct": 88,
+      "isCharging": false,
+      "networkType": "UNKNOWN"
+    }
+  ]
+}

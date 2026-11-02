@@ -34,7 +34,7 @@ class ApiClient(private val context: Context) {
         const val KEY_AUTH_TOKEN = "auth_token"
         const val KEY_INTERVAL_MINS = "interval_mins"
 
-        const val DEFAULT_SERVER_URL = "http://10.0.2.2:3000"
+        const val DEFAULT_SERVER_URL = "http://10.0.2.2:5050"
         const val DEFAULT_DEVICE_ID = "child_phone_01"
         const val DEFAULT_AUTH_TOKEN = "family_secret_token_123"
         const val DEFAULT_INTERVAL_MINS = 30
