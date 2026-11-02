@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">Family Companion</string>
+    <string name="title_device_status">Service Status</string>
+    <string name="status_active">Sync Active (30-60 min)</string>
+    <string name="status_inactive">Sync Disabled</string>
+    <string name="label_server_url">Relay Server URL</string>
+    <string name="label_device_id">Device Identifier</string>
+    <string name="label_auth_token">Secret Auth Token</string>
+    <string name="label_interval">Sync Frequency</string>
+    <string name="interval_30_min">Every 30 Minutes</string>
+    <string name="interval_60_min">Every 60 Minutes</string>
+    <string name="btn_save_start">Save &amp; Activate Sync</string>
+    <string name="btn_sync_now">Test Sync Now</string>
+    <string name="btn_fix_permissions">Check Permissions &amp; Battery</string>
+    <string name="permissions_granted_ok">All permissions granted &amp; battery optimized.</string>
+</resources>
