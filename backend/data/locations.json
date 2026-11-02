@@ -9,6 +9,16 @@
       "latitude": 37.7749,
       "longitude": -122.4194,
       "accuracy": 14.2
+    },
+    "child_phone_01": {
+      "deviceId": "child_phone_01",
+      "lastSeen": 1793620702947,
+      "lastReportedTime": 1793620702943,
+      "batteryPct": 95,
+      "isCharging": false,
+      "latitude": 28.613958537504356,
+      "longitude": 77.208221873306,
+      "accuracy": 11
     }
   },
   "locations": [
@@ -23,6 +33,42 @@
       "batteryPct": 88,
       "isCharging": false,
       "networkType": "UNKNOWN"
+    },
+    {
+      "id": "loc_1793620692949_cfhp5z",
+      "deviceId": "child_phone_01",
+      "timestamp": 1793620692936,
+      "serverReceivedAt": 1793620692949,
+      "latitude": 28.61366698815589,
+      "longitude": 77.20872343404781,
+      "accuracy": 16,
+      "batteryPct": 95,
+      "isCharging": false,
+      "networkType": "WIFI"
+    },
+    {
+      "id": "loc_1793620697945_3hc64e",
+      "deviceId": "child_phone_01",
+      "timestamp": 1793620697942,
+      "serverReceivedAt": 1793620697945,
+      "latitude": 28.61404706658945,
+      "longitude": 77.20844737062819,
+      "accuracy": 13,
+      "batteryPct": 95,
+      "isCharging": false,
+      "networkType": "WIFI"
+    },
+    {
+      "id": "loc_1793620702947_qigwde",
+      "deviceId": "child_phone_01",
+      "timestamp": 1793620702943,
+      "serverReceivedAt": 1793620702947,
+      "latitude": 28.613958537504356,
+      "longitude": 77.208221873306,
+      "accuracy": 11,
+      "batteryPct": 95,
+      "isCharging": false,
+      "networkType": "WIFI"
     }
   ]
 }
