@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Family Safety Dashboard</title>
+  <!-- Leaflet CSS for 100% free interactive OpenStreetMap -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Navigation Bar -->
+    <header class="navbar">
+      <div class="brand">
+        <span class="brand-icon">🛡️</span>
+        <div>
+          <h1>Family Safety</h1>
+          <p class="subtitle">Location Companion</p>
+        </div>
+      </div>
+      <button id="btnRefresh" class="btn-icon" title="Refresh Now">🔄</button>
+    </header>
+
+    <!-- Map Container -->
+    <div id="map"></div>
+
+    <!-- Floating Info Panel -->
+    <div class="info-card">
+      <div class="card-header">
+        <div class="device-info">
+          <span id="statusIndicator" class="status-dot green"></span>
+          <h2 id="deviceTitle">child_phone_01</h2>
+        </div>
+        <div id="batteryBadge" class="badge">
+          <span id="batteryIcon">🔋</span>
+          <span id="batteryText">--%</span>
+        </div>
+      </div>
+
+      <div class="telemetry-grid">
+        <div class="telemetry-item">
+          <span class="label">Last Updated</span>
+          <span id="valLastUpdated" class="value">Awaiting data...</span>
+        </div>
+        <div class="telemetry-item">
+          <span class="label">GPS Accuracy</span>
+          <span id="valAccuracy" class="value">-- m</span>
+        </div>
+        <div class="telemetry-item">
+          <span class="label">Coordinates</span>
+          <span id="valCoords" class="value">--</span>
+        </div>
+        <div class="telemetry-item">
+          <span class="label">Network</span>
+          <span id="valNetwork" class="value">Cell/WiFi</span>
+        </div>
+      </div>
+
+      <div class="actions-row">
+        <label class="toggle-container">
+          <input type="checkbox" id="chkShowTrail" checked>
+          <span class="toggle-label">Show Movement Trail</span>
+        </label>
+        <a id="btnExternalMaps" href="#" target="_blank" class="btn-outline">Open in Google Maps</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="app.js"></script>
+</body>
+</html>
