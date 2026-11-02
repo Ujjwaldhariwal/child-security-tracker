@@ -30,6 +30,7 @@ class LocationSyncWorker(
         const val KEY_LAST_SYNC_TIME = "last_sync_timestamp"
         const val KEY_LAST_LATITUDE = "last_latitude"
         const val KEY_LAST_LONGITUDE = "last_longitude"
+        private const val STALE_THRESHOLD_MS = 15 * 60 * 1000L // 15 minutes
     }
 
     override suspend fun doWork(): Result {
@@ -52,20 +53,62 @@ class LocationSyncWorker(
         val fusedClient = LocationServices.getFusedLocationProviderClient(appContext)
         val cts = CancellationTokenSource()
 
-        val location: Location? = try {
-            withTimeoutOrNull(12_000) {
+        var isCached = false
+        var isStale = false
+        var fixTimestamp: Long
+
+        val freshLocation: Location? = try {
+            withTimeoutOrNull(10_000) {
                 // Priority.PRIORITY_BALANCED_POWER_ACCURACY locks in 1-3 seconds using Wi-Fi & cell towers
                 fusedClient.getCurrentLocation(
                     Priority.PRIORITY_BALANCED_POWER_ACCURACY,
                     cts.token
                 ).await()
-            } ?: fusedClient.lastLocation.await()
+            }
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to capture current location, attempting last known location", e)
-            try {
+            Log.w(TAG, "Exception during fresh location acquisition", e)
+            null
+        }
+
+        val location: Location?
+        if (freshLocation != null) {
+            location = freshLocation
+            isCached = false
+            isStale = false
+            fixTimestamp = if (freshLocation.time > 0) freshLocation.time else System.currentTimeMillis()
+            Log.i(TAG, "Acquired fresh location fix (accuracy: ${freshLocation.accuracy}m)")
+        } else {
+            // Cancel hardware scan immediately upon timeout to power down sensors
+            cts.cancel()
+            Log.w(TAG, "Fresh location timed out after 10s. Falling back to lastLocation.")
+
+            val cachedLocation: Location? = try {
                 fusedClient.lastLocation.await()
             } catch (fallbackEx: Exception) {
+                Log.w(TAG, "Failed to retrieve last known location", fallbackEx)
                 null
+            }
+
+            if (cachedLocation != null) {
+                location = cachedLocation
+                isCached = true
+                val now = System.currentTimeMillis()
+                val cachedTime = cachedLocation.time
+                val ageMs = now - cachedTime
+
+                // Strict validation: Do NOT spoof stale timestamps as current time!
+                fixTimestamp = if (cachedTime > 0) cachedTime else now
+
+                if (ageMs > STALE_THRESHOLD_MS) {
+                    isStale = true
+                    Log.w(TAG, "Last known location is stale (Age: ${ageMs / 60000} mins). Flagging isStale = true.")
+                } else {
+                    isStale = false
+                    Log.i(TAG, "Last known location is fresh enough (Age: ${ageMs / 1000}s).")
+                }
+            } else {
+                location = null
+                fixTimestamp = System.currentTimeMillis()
             }
         }
 
@@ -77,20 +120,24 @@ class LocationSyncWorker(
         // 3. Read battery status
         val (batteryPct, isCharging) = getBatteryStatus(appContext)
 
-        // 4. Assemble payload
+        // 4. Assemble payload with truthful fixTimestamp and isStale flag
         val prefs = appContext.getSharedPreferences(ApiClient.PREFS_NAME, Context.MODE_PRIVATE)
         val deviceId = prefs.getString(ApiClient.KEY_DEVICE_ID, ApiClient.DEFAULT_DEVICE_ID)
             ?: ApiClient.DEFAULT_DEVICE_ID
 
         val payload = LocationPayload(
             deviceId = deviceId,
-            timestamp = System.currentTimeMillis(),
+            timestamp = fixTimestamp, // Truthful fix timestamp, NOT spoofed current time!
+            fixTimestamp = fixTimestamp,
             latitude = location.latitude,
             longitude = location.longitude,
             accuracy = location.accuracy,
             batteryPct = batteryPct,
             isCharging = isCharging,
-            networkType = "AUTOMATIC"
+            networkType = if (isCached) "CACHED_FALLBACK" else "BALANCED_NLP",
+            isOfflineBuffered = false,
+            isCached = isCached,
+            isStale = isStale
         )
 
         // 5. Send to relay backend
@@ -103,7 +150,7 @@ class LocationSyncWorker(
                 .putString(KEY_LAST_LATITUDE, payload.latitude.toString())
                 .putString(KEY_LAST_LONGITUDE, payload.longitude.toString())
                 .apply()
-            Log.i(TAG, "Periodic location update delivered successfully.")
+            Log.i(TAG, "Periodic location update delivered successfully (isCached=$isCached, isStale=$isStale).")
             Result.success()
         } else {
             Log.w(TAG, "Periodic location update failed, scheduling retry via WorkManager.")

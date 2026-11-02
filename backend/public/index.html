@@ -16,10 +16,12 @@
         <span class="brand-icon">🛡️</span>
         <div>
           <h1>Family Safety</h1>
-          <p class="subtitle">Location Companion</p>
+          <p class="subtitle">Real-Time Companion & Location Trail</p>
         </div>
       </div>
-      <button id="btnRefresh" class="btn-icon" title="Refresh Now">🔄</button>
+      <div class="nav-actions">
+        <button id="btnRefresh" class="btn-icon" title="Refresh Now">🔄</button>
+      </div>
     </header>
 
     <!-- Map Container -->
@@ -27,10 +29,22 @@
 
     <!-- Floating Info Panel -->
     <div class="info-card">
+      <!-- Coarse Location Warning Banner (Shown if accuracy > 100m) -->
+      <div id="coarseWarningBanner" class="warning-banner hidden">
+        <span class="warning-icon">⚠️</span>
+        <span class="warning-text">
+          <strong>Coarse Location:</strong> Low accuracy fix (<span id="coarseAccuracyVal">±100m</span>). Position may be approximate (Cell Tower / Wi-Fi).
+        </span>
+      </div>
+
       <div class="card-header">
         <div class="device-info">
           <span id="statusIndicator" class="status-dot green"></span>
-          <h2 id="deviceTitle">child_phone_01</h2>
+          <div>
+            <h2 id="deviceTitle">child_phone_01</h2>
+            <!-- Fresh vs Cached / Buffered Indicator Pill -->
+            <span id="pillFixType" class="pill-badge pill-live">📡 Live GPS Fix</span>
+          </div>
         </div>
         <div id="batteryBadge" class="badge">
           <span id="batteryIcon">🔋</span>
@@ -57,10 +71,23 @@
         </div>
       </div>
 
+      <!-- Time-Range Selector / History Scrubber -->
+      <div class="time-filter-container">
+        <div class="filter-header">
+          <span class="filter-label">History Range:</span>
+          <span id="trailCountBadge" class="trail-count">0 waypoints</span>
+        </div>
+        <div class="time-filter-buttons" role="group" aria-label="Time range selector">
+          <button type="button" class="filter-btn" data-range="2h">Past 2 Hours</button>
+          <button type="button" class="filter-btn active" data-range="24h">Past 24 Hours</button>
+          <button type="button" class="filter-btn" data-range="all">All Time</button>
+        </div>
+      </div>
+
       <div class="actions-row">
         <label class="toggle-container">
           <input type="checkbox" id="chkShowTrail" checked>
-          <span class="toggle-label">Show Movement Trail</span>
+          <span class="toggle-label">Show Waypoints & Trail</span>
         </label>
         <a id="btnExternalMaps" href="#" target="_blank" class="btn-outline">Open in Google Maps</a>
       </div>

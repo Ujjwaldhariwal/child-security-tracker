@@ -74,4 +74,39 @@ class ApiClient(private val context: Context) {
             Result.failure(e)
         }
     }
+
+    suspend fun sendLocationBatch(payload: com.familysafety.tracker.model.BatchLocationPayload): Result<com.familysafety.tracker.model.BatchSyncResponse> = withContext(Dispatchers.IO) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val serverUrl = prefs.getString(KEY_SERVER_URL, DEFAULT_SERVER_URL)?.trimEnd('/')
+            ?: DEFAULT_SERVER_URL
+        val authToken = prefs.getString(KEY_AUTH_TOKEN, DEFAULT_AUTH_TOKEN) ?: DEFAULT_AUTH_TOKEN
+
+        val endpoint = "$serverUrl/api/location/batch"
+        val jsonBody = gson.toJson(payload)
+
+        val request = Request.Builder()
+            .url(endpoint)
+            .addHeader("Content-Type", "application/json")
+            .addHeader("X-Device-Token", authToken)
+            .post(jsonBody.toRequestBody(jsonMediaType))
+            .build()
+
+        try {
+            val response = client.newCall(request).execute()
+            val responseBody = response.body?.string()
+
+            if (response.isSuccessful && !responseBody.isNullOrBlank()) {
+                val syncResponse = gson.fromJson(responseBody, com.familysafety.tracker.model.BatchSyncResponse::class.java)
+                Log.d(TAG, "Batch sync success: ${payload.batchSize} items uploaded.")
+                Result.success(syncResponse)
+            } else {
+                val errorMsg = "HTTP batch error ${response.code}: $responseBody"
+                Log.e(TAG, errorMsg)
+                Result.failure(IOException(errorMsg))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Network batch sync failed", e)
+            Result.failure(e)
+        }
+    }
 }

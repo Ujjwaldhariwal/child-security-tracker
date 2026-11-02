@@ -34,13 +34,15 @@
             </intent-filter>
         </activity>
 
-        <!-- BroadcastReceiver for restarting periodic worker upon phone reboot -->
+        <!-- BroadcastReceiver for restarting periodic worker upon phone reboot (Direct Boot Aware) -->
         <receiver
             android:name=".receiver.BootReceiver"
             android:enabled="true"
-            android:exported="false">
+            android:exported="false"
+            android:directBootAware="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
             </intent-filter>

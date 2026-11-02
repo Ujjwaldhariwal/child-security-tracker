@@ -2,6 +2,7 @@ package com.familysafety.tracker.ui
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -10,6 +11,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -24,6 +26,11 @@ import java.util.Date
 import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
+
+    companion object {
+        private const val TAG = "MainActivity"
+        private const val KEY_OEM_PROMPTED = "has_prompted_oem_killer_warning"
+    }
 
     private lateinit var binding: ActivityMainBinding
 
@@ -50,6 +57,9 @@ class MainActivity : AppCompatActivity() {
         setupListeners()
         updatePermissionStatusUI()
         updateSyncStatusUI()
+
+        // Check for OEM background task killers (Samsung, Xiaomi, Oppo, etc.)
+        checkManufacturerRestrictions(forceDialog = false)
     }
 
     override fun onResume() {
@@ -105,6 +115,10 @@ class MainActivity : AppCompatActivity() {
         binding.btnFixPermissions.setOnClickListener {
             requestPermissionsWorkflow()
         }
+
+        binding.btnOemSettings.setOnClickListener {
+            checkManufacturerRestrictions(forceDialog = true)
+        }
     }
 
     private fun requestPermissionsWorkflow() {
@@ -157,10 +171,162 @@ class MainActivity : AppCompatActivity() {
                     }
                     startActivity(intent)
                 }
-                .setNegativeButton("Later", null)
+                .setNegativeButton("Later") { _, _ ->
+                    checkManufacturerRestrictions(forceDialog = false)
+                }
                 .show()
         } else {
-            Toast.makeText(this, "All permissions and battery settings are optimally configured!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Standard AOSP battery optimization exempted.", Toast.LENGTH_SHORT).show()
+            checkManufacturerRestrictions(forceDialog = false)
+        }
+    }
+
+    /**
+     * Inspects Build.MANUFACTURER and displays vendor-specific guidance dialog
+     * for Samsung, Xiaomi, Oppo, Realme, Vivo, and Huawei aggressive task killing daemons.
+     */
+    private fun checkManufacturerRestrictions(forceDialog: Boolean = false) {
+        val manufacturer = Build.MANUFACTURER.lowercase(Locale.ROOT)
+        val isAggressiveOem = manufacturer.contains("samsung") ||
+                manufacturer.contains("xiaomi") ||
+                manufacturer.contains("redmi") ||
+                manufacturer.contains("poco") ||
+                manufacturer.contains("oppo") ||
+                manufacturer.contains("realme") ||
+                manufacturer.contains("vivo") ||
+                manufacturer.contains("huawei") ||
+                manufacturer.contains("honor")
+
+        val prefs = getSharedPreferences(ApiClient.PREFS_NAME, Context.MODE_PRIVATE)
+        val hasPrompted = prefs.getBoolean(KEY_OEM_PROMPTED, false)
+
+        if (!forceDialog && (!isAggressiveOem || hasPrompted)) {
+            return
+        }
+
+        val (brandTitle, guidanceMessage, dkmUrl) = when {
+            manufacturer.contains("samsung") -> Triple(
+                "Samsung One UI Battery Restrictions",
+                "Samsung automatically places apps not opened in 3 days into 'Deep Sleep' and stops periodic WorkManager tracking.\n\n" +
+                        "Recommended Actions:\n" +
+                        "1. Open Settings > Battery > Background usage limits.\n" +
+                        "2. Add 'Family Companion' to 'Never sleeping apps'.\n" +
+                        "3. Disable 'Put unused apps to sleep'.",
+                "https://dontkillmyapp.com/samsung"
+            )
+            manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco") -> Triple(
+                "Xiaomi / HyperOS / MIUI Restrictions",
+                "Xiaomi aggressively blocks background network tasks and disables boot autostart by default.\n\n" +
+                        "Recommended Actions:\n" +
+                        "1. Open Security app > Manage apps > Family Companion.\n" +
+                        "2. Enable 'Autostart'.\n" +
+                        "3. In Battery Saver, select 'No restrictions'.",
+                "https://dontkillmyapp.com/xiaomi"
+            )
+            manufacturer.contains("oppo") || manufacturer.contains("realme") -> Triple(
+                "Oppo / Realme (ColorOS) Restrictions",
+                "ColorOS terminates background workers after 10-15 seconds of screen-off time.\n\n" +
+                        "Recommended Actions:\n" +
+                        "1. Open Settings > Battery > App Battery Management.\n" +
+                        "2. Select Family Companion and enable 'Allow background activity' and 'Allow auto-startup'.",
+                "https://dontkillmyapp.com/oppo"
+            )
+            manufacturer.contains("vivo") -> Triple(
+                "Vivo (Funtouch OS) Restrictions",
+                "Vivo iManager terminates background services unless whitelisted.\n\n" +
+                        "Recommended Actions:\n" +
+                        "1. Open Settings > Battery > High background power consumption.\n" +
+                        "2. Turn ON the toggle for Family Companion.",
+                "https://dontkillmyapp.com/vivo"
+            )
+            manufacturer.contains("huawei") || manufacturer.contains("honor") -> Triple(
+                "Huawei / Honor PowerGenie Alert",
+                "Huawei PowerGenie kills all background workers on screen lock.\n\n" +
+                        "Recommended Actions:\n" +
+                        "1. Open Settings > Battery > App Launch.\n" +
+                        "2. Switch Family Companion from 'Manage automatically' to 'Manage manually'.\n" +
+                        "3. Ensure Auto-launch, Secondary launch, and Run in background are all enabled.",
+                "https://dontkillmyapp.com/huawei"
+            )
+            else -> Triple(
+                "${Build.MANUFACTURER} Device Optimization",
+                "Some device manufacturers restrict background periodic location tracking to save battery. Ensure this companion app has unrestricted background execution.",
+                "https://dontkillmyapp.com"
+            )
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("⚠️ $brandTitle")
+            .setMessage(guidanceMessage)
+            .setPositiveButton("Configure OEM Settings") { _, _ ->
+                prefs.edit().putBoolean(KEY_OEM_PROMPTED, true).apply()
+                launchOemBatterySettings(manufacturer)
+            }
+            .setNeutralButton("DontKillMyApp Guide") { _, _ ->
+                try {
+                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(dkmUrl))
+                    startActivity(browserIntent)
+                } catch (e: Exception) {
+                    Toast.makeText(this, "Could not open browser", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("I Have Configured This") { _, _ ->
+                prefs.edit().putBoolean(KEY_OEM_PROMPTED, true).apply()
+            }
+            .show()
+    }
+
+    /**
+     * Attempts to launch vendor-specific OEM battery management / autostart settings.
+     * Gracefully falls back to standard Application Details settings if vendor intent is not present.
+     */
+    private fun launchOemBatterySettings(manufacturer: String) {
+        val intent = Intent()
+        try {
+            when {
+                manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco") -> {
+                    intent.component = ComponentName(
+                        "com.miui.securitycenter",
+                        "com.miui.permcenter.autostart.AutoStartManagementActivity"
+                    )
+                }
+                manufacturer.contains("samsung") -> {
+                    intent.component = ComponentName(
+                        "com.samsung.android.lool",
+                        "com.samsung.android.sm.ui.battery.BatteryActivity"
+                    )
+                }
+                manufacturer.contains("oppo") || manufacturer.contains("realme") -> {
+                    intent.component = ComponentName(
+                        "com.coloros.safecenter",
+                        "com.coloros.safecenter.permission.startup.StartupAppListActivity"
+                    )
+                }
+                manufacturer.contains("vivo") -> {
+                    intent.component = ComponentName(
+                        "com.iqoo.secure",
+                        "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity"
+                    )
+                }
+                manufacturer.contains("huawei") || manufacturer.contains("honor") -> {
+                    intent.component = ComponentName(
+                        "com.huawei.systemmanager",
+                        "com.huawei.systemmanager.optimize.process.ProtectActivity"
+                    )
+                }
+                else -> {
+                    intent.action = Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS
+                }
+            }
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            startActivity(intent)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to launch specific OEM activity for $manufacturer, falling back to app settings", e)
+            val fallback = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.parse("package:$packageName")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            startActivity(fallback)
         }
     }
 
@@ -177,12 +343,12 @@ class MainActivity : AppCompatActivity() {
             binding.tvPermissionStatus.text = "✓ Permissions & Battery: All 100% Configured"
             binding.tvPermissionStatus.setTextColor(ContextCompat.getColor(this, com.familysafety.tracker.R.color.status_green))
             binding.btnFixPermissions.isEnabled = false
-            binding.btnFixPermissions.text = "Configured"
+            binding.btnFixPermissions.text = "Permissions Configured"
         } else {
             binding.tvPermissionStatus.text = "⚠️ Requires Action: Background location or battery exemption missing."
             binding.tvPermissionStatus.setTextColor(ContextCompat.getColor(this, com.familysafety.tracker.R.color.status_amber))
             binding.btnFixPermissions.isEnabled = true
-            binding.btnFixPermissions.text = "Configure Permissions"
+            binding.btnFixPermissions.text = "Grant Permissions"
         }
     }
 

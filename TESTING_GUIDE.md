@@ -1,6 +1,6 @@
-# 2-Phone Testing Guide (Family Safety POC)
+# 2-Phone Testing Guide (Family Safety Architecture v2)
 
-This guide walks you through testing the lightweight, zero-cost periodic location tracker between your **two Android phones**.
+This guide walks you through testing the ultra-low-power, zero-cost periodic location tracker between your **two Android phones** and verifies the production enhancements (offline batching, rate limiting, strict validation, OEM survivability, and historical scrubber).
 
 ---
 
@@ -19,7 +19,8 @@ On your laptop or computer:
 ```bash
 cd backend
 npm install
-node server.js
+npm test      # Verify all 14 integration tests pass
+npm start     # Starts relay server on port 5050
 ```
 
 The server will print:
@@ -27,8 +28,9 @@ The server will print:
 ====================================================
  Family Safety Relay Backend is RUNNING
  Listening on: http://0.0.0.0:5050
- Default Auth Token: family_secret_token_123
  Parent Dashboard: http://localhost:5050
+ Rate Limiting: 60 req/min per IP active
+ Validation: Strict numeric finite & bounds active
 ====================================================
 ```
 
@@ -60,13 +62,17 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ### B. Launch & Grant Critical Permissions
 Open the **Family Companion** app on the child phone:
 
-1. **Foreground Location:** Tap **"Configure Permissions"** and select **"While using the app"**.
+1. **Foreground Location:** Tap **"Grant Permissions"** and select **"While using the app"**.
 2. **Background Location ("Allow all the time"):** 
    - A dialog will appear explaining that periodic updates need background location.
    - Tap **"Open Settings"** > **Permissions** > **Location** > Select **"Allow all the time"**.
-3. **Battery Optimization (Prevent Doze Mode Sleep):**
+3. **Battery Optimization (AOSP Doze Mode Exemption):**
    - Tap **"Exempt Now"** when prompted, and allow the app to run without battery restrictions.
-   - *(Alternatively in phone settings: Settings > Apps > Family Companion > Battery > Select "Unrestricted")*.
+4. **OEM Background Killer Protection (Samsung / Xiaomi / Oppo):**
+   - Tap **"OEM Background Protection Wizard"** (or view automatic prompt).
+   - If using Samsung, Xiaomi, Oppo, Realme, or Vivo, follow the brand-specific guidance to enable Autostart and set Battery Saver to "No restrictions" / "Never sleeping apps".
+5. **Direct Boot Awareness:**
+   - The app's `BootReceiver` is configured with `android:directBootAware="true"`. If the child's phone reboots overnight before the lock screen PIN is entered, WorkManager automatically reschedules tracking.
 
 ### C. Connect to Relay Server
 In the app configuration fields:
@@ -92,33 +98,64 @@ On the **Parent Phone**:
 2. Navigate to: `http://192.168.1.105:5050` *(Your computer's IP)*
 3. You will see the **Family Safety Live Map Dashboard**:
    * **Live Location Pin:** Showing the child's exact location on OpenStreetMap.
-   * **GPS Accuracy Circle:** Displays meter precision.
-   * **Battery Percentage & Charging Status:** Monitored in real-time.
-   * **Last Updated Indicator:** e.g., "Updated 2 minutes ago".
-   * **Historical Movement Trail:** Check "Show Movement Trail" to see breadcrumbs.
+   * **Fresh vs Buffered Pill:** Displays `📡 Live GPS Fix`, `📦 Offline Buffered`, or `🕒 Cached Fix (Stale)`.
+   * **Coarse Location Warning Banner:** Appears automatically if GPS accuracy exceeds 100 meters (warning parents of approximate cell tower triangulation).
+   * **Interactive Waypoint Markers:** Click any dot on the trail to inspect recorded timestamp, battery %, accuracy radius, and fix source.
+   * **History Scrubber / Time-Range Filter:** Filter route breadcrumbs by **"Past 2 Hours"**, **"Past 24 Hours"**, or **"All Time"**.
+   * **Battery Percentage & Charging Status:** Monitored with live charging indicator.
 4. **Make it an App (PWA):**
    * In Chrome on the parent phone, tap the 3 dots (⋮) > **"Add to Home screen"**.
-   * It will appear as an app icon on the parent phone's home screen.
+   * An app icon is created on your home screen. It launches in standalone full-screen mode like a native app.
 
 ---
 
-## Step 4: Standby & Doze Mode Verification
+## Step 4: Verification & Stress Testing
 
-To verify that the background tracker survives Android battery saver and sleep modes:
-
-1. Lock the child phone and leave it unplugged on a table.
-2. Wait 30–60 minutes.
-3. Check the parent dashboard or server log:
-   * The Android `WorkManager` will wake up, lock GPS for 2–3 seconds, post the coordinate payload, and immediately power down the GPS, consuming virtually **0% extra battery**.
-
----
-
-## 💡 Remote Testing (Without Shared Wi-Fi)
-
-If the child phone is outside on 4G/5G mobile data and not connected to home Wi-Fi:
-Use a free Cloudflare Tunnel or Tailscale to expose port 5050:
+### 1. Test Offline Reconnect Batch Upload
+Simulate a child entering the subway without signal, accumulating coordinates, and re-connecting:
 ```bash
-# Using Cloudflare Tunnel (completely free, no account needed):
-npx untun@latest tunnel --port 5050
+node simulator.js --batch
 ```
-This generates a secure public HTTPS URL (e.g. `https://random-subdomain.trycloudflare.com`). Put that URL into the child app's "Relay Server URL" field!
+- The batch payload is ingested atomically via `POST /api/location/batch`.
+- In the Parent Dashboard, switch the History Scrubber to **"Past 2 Hours"** and click on the new waypoints to observe the `📦 Offline Buffered` badge!
+
+### 2. Test Coarse Accuracy Banner
+Run the continuous simulator:
+```bash
+node simulator.js
+```
+Every 7th step simulates a cellular-only fix (±150m-200m). Notice the amber **Coarse Location Warning Banner** appears on the dashboard with the exact error margin.
+
+### 3. Test Security Middleware
+Attempt sending invalid requests to the relay backend:
+```bash
+# Query param token rejection (Returns 401)
+curl -X POST "http://localhost:5050/api/location?token=family_secret_token_123" \
+  -H "Content-Type: application/json" \
+  -d '{"latitude": 28.61, "longitude": 77.20}'
+
+# Out-of-bounds latitude rejection (Returns 400)
+curl -X POST "http://localhost:5050/api/location" \
+  -H "Content-Type: application/json" \
+  -H "X-Device-Token: family_secret_token_123" \
+  -d '{"latitude": 105.0, "longitude": 77.20}'
+```
+All malicious or out-of-bounds inputs are blocked.
+
+### 4. Run Automated QA Test Suites
+The project includes 52 automated tests covering geographic boundaries, adversarial input fuzzing, high concurrency (50 simultaneous requests), and time-range monotonicity:
+
+```bash
+cd backend
+
+# Run baseline functional API suite (14 tests)
+npm test
+
+# Run stress, boundary, malicious input, and concurrency suite (38 tests)
+npm run test:stress
+
+# Run all 52 tests back-to-back
+npm run test:all
+```
+
+For full test results and certification analysis, inspect [docs/TEST_REPORT_V2.md](docs/TEST_REPORT_V2.md).

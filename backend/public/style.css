@@ -2,7 +2,7 @@
   --primary: #1e3a8a;
   --primary-light: #3b82f6;
   --bg-color: #f8fafc;
-  --card-bg: rgba(255, 255, 255, 0.96);
+  --card-bg: rgba(255, 255, 255, 0.98);
   --text-main: #0f172a;
   --text-muted: #64748b;
   --green: #10b981;
@@ -98,7 +98,7 @@ body, html {
   bottom: 20px;
   left: 20px;
   right: 20px;
-  max-width: 480px;
+  max-width: 500px;
   margin: 0 auto;
   background: var(--card-bg);
   backdrop-filter: blur(10px);
@@ -106,7 +106,32 @@ body, html {
   box-shadow: var(--shadow);
   padding: 16px;
   z-index: 1000;
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+/* Coarse Location Warning Banner */
+.warning-banner {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  animation: fadeIn 0.3s ease;
+}
+
+.warning-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.warning-banner.hidden {
+  display: none !important;
 }
 
 .card-header {
@@ -119,14 +144,15 @@ body, html {
 .device-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .status-dot {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   display: inline-block;
+  flex-shrink: 0;
 }
 
 .status-dot.green { background-color: var(--green); box-shadow: 0 0 8px var(--green); }
@@ -137,6 +163,39 @@ body, html {
   font-size: 16px;
   font-weight: 700;
   color: var(--text-main);
+  line-height: 1.2;
+}
+
+/* Fresh vs Cached Indicator Pill */
+.pill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-top: 2px;
+}
+
+.pill-badge.pill-live {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.pill-badge.pill-buffered {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.pill-badge.pill-stale {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
 }
 
 .badge {
@@ -182,6 +241,67 @@ body, html {
   text-overflow: ellipsis;
 }
 
+/* Time Range Filter */
+.time-filter-container {
+  background: #f8fafc;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  border: 1px solid #f1f5f9;
+}
+
+.filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.filter-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.trail-count {
+  font-size: 11px;
+  color: var(--primary-light);
+  font-weight: 600;
+}
+
+.time-filter-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.filter-btn {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #cbd5e1;
+  background: white;
+  color: var(--text-main);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.filter-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.filter-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  box-shadow: 0 1px 3px rgba(30, 58, 138, 0.3);
+}
+
 .actions-row {
   display: flex;
   justify-content: space-between;
@@ -217,6 +337,32 @@ body, html {
 .btn-outline:hover {
   background: var(--primary);
   color: white;
+}
+
+/* Waypoint Popup Styling */
+.waypoint-popup {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #1e293b;
+  min-width: 170px;
+}
+
+.waypoint-popup h4 {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--primary);
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 4px;
+}
+
+.waypoint-popup p {
+  margin: 3px 0;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @media (max-width: 480px) {
